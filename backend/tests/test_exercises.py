@@ -3,8 +3,8 @@ def test_exercise_session_submission(client):
     
     res = client.post("/api/exercises/sessions", json={
         "student_id": s["id"],
-        "exercise_id": "trace_a",
-        "target_character": "a",
+        "exercise_id": "exercise_trace_line",
+        "target_character": "A",
         "path_coverage": 88,
         "accuracy": 82,
         "smoothness": 76,
@@ -12,7 +12,7 @@ def test_exercise_session_submission(client):
         "completion_time_seconds": 25,
         "score": 82
     })
-    assert res.status_code == 201
+    assert res.status_code == 200
     data = res.json()
     assert data["score"] == 82
     assert "performance_label" in data
