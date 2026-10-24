@@ -6,8 +6,9 @@ export interface Landmark {
   z?: number;
 }
 
-const WASM_PATH = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm";
-const MODEL_PATH = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task";
+// Bundled locally so camera startup does not depend on CDN/network access.
+const WASM_PATH = `${import.meta.env.BASE_URL}wasm`;
+const MODEL_PATH = `${import.meta.env.BASE_URL}models/hand_landmarker.task`;
 
 export class HandLandmarkTracker {
   private landmarker: HandLandmarker | null = null;
