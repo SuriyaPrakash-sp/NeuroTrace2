@@ -31,7 +31,7 @@ Thumbs.db
 *.tar
 *.zip
 
-# Python backend (for upcoming steps)
+# Python backend
 __pycache__/
 *.py[cod]
 *$py.class
@@ -43,3 +43,7 @@ ENV/
 .venv/
 backend/uploads/*
 !backend/uploads/.gitkeep
+*.db
+*.sqlite3
+backend/*.db
+backend/*.sqlite3

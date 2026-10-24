@@ -6,6 +6,16 @@ import { TARGET_PATHS, type Point } from "../lib/targetPaths";
 import { tracker } from "../features/exercises/HandLandmarkTracker";
 
 const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
+const describeCameraError = (error: unknown) => {
+  const name = error instanceof DOMException ? error.name : "";
+  if (name === "NotAllowedError" || name === "SecurityError") return "Camera permission was denied. Allow camera access for localhost in the browser address bar, then retry.";
+  if (name === "NotFoundError") return "No camera was found. Connect a webcam or choose demo mode.";
+  if (name === "NotReadableError" || name === "TrackStartError") return "The camera is already being used by another application. Close other camera apps and retry.";
+  if (name === "OverconstrainedError") return "The selected camera does not support the requested resolution. Retry with another camera.";
+  if (!window.isSecureContext && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") return "Camera access requires HTTPS or localhost. Open the app at http://localhost:5173.";
+  if (error instanceof Error && /fetch|network|wasm|model|delegate/i.test(error.message)) return "The hand-tracking model could not load. Check your internet connection and retry; CPU fallback is enabled.";
+  return error instanceof Error ? error.message : "Camera or hand tracking could not be started.";
+};
 const normalizePath = (character: string): Point[] => {
   const source = TARGET_PATHS[character.toLowerCase()] ?? TARGET_PATHS.a;
   return source.points.map((point) => ({ x: point.x / 100, y: point.y / 100 }));
@@ -161,6 +171,12 @@ export function ARExercisePanel({
     setMode("loading");
     setMessage("Loading the camera and hand-tracking model…");
     try {
+      if (!window.isSecureContext && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
+        throw new Error("Camera access requires HTTPS or localhost. Open the app at http://localhost:5173.");
+      }
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error("This browser does not expose camera access. Use the latest Chrome or Edge.");
+      }
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
       streamRef.current = stream;
       const video = videoRef.current;
@@ -172,12 +188,12 @@ export function ARExercisePanel({
       smoothPointRef.current = null;
       startedAtRef.current = performance.now();
       setMode("camera");
-      setMessage("Trace the glowing path with your index finger.");
+      setMessage(`Trace the glowing path with your index finger. ${tracker.getDelegate()} tracking active.`);
       frameRef.current = requestAnimationFrame(loop);
     } catch (caught) {
       stopMedia();
       setMode("idle");
-      setError(caught instanceof Error ? caught.message : "Camera or hand tracking could not be started.");
+      setError(describeCameraError(caught));
       setMessage("You can retry camera access or use the controlled demo fallback.");
     }
   };

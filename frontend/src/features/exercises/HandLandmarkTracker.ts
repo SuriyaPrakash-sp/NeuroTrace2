@@ -13,6 +13,7 @@ export class HandLandmarkTracker {
   private landmarker: HandLandmarker | null = null;
   private active = false;
   private loading: Promise<void> | null = null;
+  private delegate: "GPU" | "CPU" = "CPU";
 
   async start() {
     if (this.landmarker) {
@@ -20,20 +21,47 @@ export class HandLandmarkTracker {
       return;
     }
     if (!this.loading) {
-      this.loading = (async () => {
-        const vision = await FilesetResolver.forVisionTasks(WASM_PATH);
-        this.landmarker = await HandLandmarker.createFromOptions(vision, {
-          baseOptions: { modelAssetPath: MODEL_PATH, delegate: "GPU" },
-          runningMode: "VIDEO",
-          numHands: 1,
-          minHandDetectionConfidence: 0.55,
-          minHandPresenceConfidence: 0.55,
-          minTrackingConfidence: 0.55,
-        });
-      })();
+      this.loading = this.createLandmarker();
     }
-    await this.loading;
-    this.active = true;
+    try {
+      await this.loading;
+      this.active = true;
+    } catch (error) {
+      this.loading = null;
+      this.landmarker = null;
+      throw error;
+    }
+  }
+
+  private async createLandmarker() {
+    const vision = await FilesetResolver.forVisionTasks(WASM_PATH);
+    const commonOptions = {
+      runningMode: "VIDEO" as const,
+      numHands: 1,
+      minHandDetectionConfidence: 0.55,
+      minHandPresenceConfidence: 0.55,
+      minTrackingConfidence: 0.55,
+    };
+
+    // GPU is faster but can be rejected by older browsers, remote desktops, or graphics policies.
+    try {
+      this.landmarker = await HandLandmarker.createFromOptions(vision, {
+        baseOptions: { modelAssetPath: MODEL_PATH, delegate: "GPU" },
+        ...commonOptions,
+      });
+      this.delegate = "GPU";
+    } catch (gpuError) {
+      console.warn("NeuroTrace: GPU hand tracking unavailable; retrying with CPU.", gpuError);
+      this.landmarker = await HandLandmarker.createFromOptions(vision, {
+        baseOptions: { modelAssetPath: MODEL_PATH, delegate: "CPU" },
+        ...commonOptions,
+      });
+      this.delegate = "CPU";
+    }
+  }
+
+  getDelegate() {
+    return this.delegate;
   }
 
   stop() {
